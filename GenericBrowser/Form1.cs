@@ -14,6 +14,8 @@ namespace GenericBrowser
 {
 	public partial class BrowserWindow : Form
 	{
+		List<KeyValuePair<String, Font>> styleList = new List<KeyValuePair<String, Font>>();
+
 		public BrowserWindow()
 		{
 			InitializeComponent();
@@ -24,7 +26,7 @@ namespace GenericBrowser
 
 		}
 
-		private void renderBox_Enter(object sender, EventArgs e)
+		private void renderBox_TextChanged(object sender, EventArgs e)
 		{
 
 		}
@@ -73,6 +75,7 @@ namespace GenericBrowser
 
 			// Clear out any currently-displayed web page data
 			renderBox.Text = "";
+			styleList.Clear();
 
 			// Now move onto the <body> processing
 			//-----------------------------------------------------------------
@@ -85,6 +88,7 @@ namespace GenericBrowser
 				{   // There's text between opening and closing tags
 					string body = html.Substring(start, end - start);
 					renderBox.Text = parseBody( body.Trim() );
+					formatDisplay();
 				}
 			}
 		}
@@ -164,7 +168,7 @@ namespace GenericBrowser
 					end = html.IndexOf(">", start);
 					html = html.Substring(end + 1);
 
-					finalHTML += processTag(tagData, tagContent);
+					finalHTML += processTag(tagData, tagContent, finalHTML.Length);
 				}
 			}
 
@@ -173,30 +177,65 @@ namespace GenericBrowser
 		}
 
 		//---------------------------------------------------------------------------
-		private string processTag(string tag, string content)
+		private string processTag(string tag, string content, int length)
 		{
 			string retVal = parseBody(content);
 			string[] tagArray = tag.Split();
+			Font f;
+			KeyValuePair<String, Font> style;
 
-			switch( tagArray[0] )
+			switch ( tagArray[0] )
 			{
 				case "h1":
+					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 3, FontStyle.Bold);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
+					break;
+
 				case "h2":
+					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 2, FontStyle.Bold);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
+					break;
+
 				case "h3":
+					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 1, FontStyle.Bold);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
+					break;
+
 				case "h4":
+					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints, FontStyle.Bold);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
+					break;
+
 				case "p":
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "div":
-					retVal += Environment.NewLine;
+					retVal = Environment.NewLine + retVal;
 					break;
 
 				case "span":
+					f = new Font(renderBox.Font, FontStyle.Italic);
+					style = new KeyValuePair<String, Font>(retVal,f);
+					styleList.Add(style);
+					break;
+
+				case "a":
+					f = new Font(renderBox.Font, FontStyle.Underline);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
 					break;
 
 				case "table":
-					retVal += Environment.NewLine;
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "tr":
@@ -204,6 +243,12 @@ namespace GenericBrowser
 					break;
 
 				case "th":
+					f = new Font(renderBox.Font, FontStyle.Bold);
+					style = new KeyValuePair<String, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = "| " + retVal;
+					break;
+
 				case "td":
 					retVal = "| " + retVal;
 					break;
@@ -213,6 +258,16 @@ namespace GenericBrowser
 			}
 
 			return retVal;
+		}
+
+		private void formatDisplay()
+		{
+			Int32 index = 0;
+			foreach (KeyValuePair<String, Font> style in styleList)
+			{
+				index = renderBox.Find(style.Key, index, RichTextBoxFinds.MatchCase);
+				renderBox.SelectionFont = style.Value;
+			}
 		}
 	}
 }

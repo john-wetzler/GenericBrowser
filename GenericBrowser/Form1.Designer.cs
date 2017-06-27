@@ -30,7 +30,7 @@
 		{
 			this.goButton = new System.Windows.Forms.Button();
 			this.inputBox = new System.Windows.Forms.TextBox();
-			this.renderBox = new System.Windows.Forms.GroupBox();
+			this.renderBox = new System.Windows.Forms.RichTextBox();
 			this.SuspendLayout();
 			// 
 			// goButton
@@ -60,15 +60,17 @@
 			this.renderBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-			this.renderBox.AutoSize = true;
+			this.renderBox.BackColor = System.Drawing.SystemColors.ControlLight;
+			this.renderBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
 			this.renderBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.renderBox.Location = new System.Drawing.Point(10, 34);
+			this.renderBox.Location = new System.Drawing.Point(10, 33);
 			this.renderBox.Name = "renderBox";
-			this.renderBox.Padding = new System.Windows.Forms.Padding(2);
+			this.renderBox.ReadOnly = true;
 			this.renderBox.Size = new System.Drawing.Size(765, 525);
 			this.renderBox.TabIndex = 3;
 			this.renderBox.TabStop = false;
-			this.renderBox.Enter += new System.EventHandler(this.renderBox_Enter);
+			this.renderBox.Text = "";
+			this.renderBox.TextChanged += new System.EventHandler(this.renderBox_TextChanged);
 			// 
 			// BrowserWindow
 			// 
@@ -92,7 +94,7 @@
 		#endregion
 		private System.Windows.Forms.Button goButton;
 		private System.Windows.Forms.TextBox inputBox;
-		private System.Windows.Forms.GroupBox renderBox;
+		private System.Windows.Forms.RichTextBox renderBox;
 	}
 }
 
