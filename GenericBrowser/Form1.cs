@@ -36,7 +36,12 @@ namespace GenericBrowser
 
 			HttpClient client = new HttpClient();
 			HttpContent content = client.GetAsync(strURL).Result.Content;
-			renderContent(content.ReadAsStringAsync().Result);
+
+			// Convert any newline chars to spaces before we begin.
+			// That's how a real browser would handle whitespace.
+			string inputHTML = content.ReadAsStringAsync().Result;
+			inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
+			renderContent(inputHTML);
 		}
 
 		private string formatURL(string strURL)
@@ -65,6 +70,9 @@ namespace GenericBrowser
 				}
 			}
 
+			// Clear out any currently-displayed web page data
+			renderBox.Text = "";
+
 			// Now move onto the <body> processing
 			//-----------------------------------------------------------------
 			start = html.IndexOf("<body>");
@@ -75,7 +83,7 @@ namespace GenericBrowser
 				if (end > start)
 				{   // There's text between opening and closing tags
 					string body = html.Substring(start, end - start);
-					parseBody(body.Trim());
+					renderBox.Text = parseBody( body.Trim() );
 				}
 			}
 		}
@@ -97,11 +105,7 @@ namespace GenericBrowser
 		}
 
 		//---------------------------------------------------------------------------
-		// Valid HTML tags to parse, per instructions:
-		//static readonly string[] VALID_TAGS = "h1,h2,h3,h4,div,p,span,a,table,tr,td,th".Split(',');
-
-		//---------------------------------------------------------------------------
-		private void parseBody(string html)
+		private string parseBody(string html)
 		{
 			string finalHTML = "";
 
@@ -110,8 +114,8 @@ namespace GenericBrowser
 				html = html.Trim();
 				int start = html.IndexOf("<");
 				if (start == -1)
-				{   // There are no tags on this line, just return the string
-					finalHTML = html.Trim() + " ";
+				{   // There are no tags remaining, just return the string
+					finalHTML += html.Trim() + " ";
 					html = "";
 				}
 				else
@@ -123,30 +127,54 @@ namespace GenericBrowser
 						html = html.Substring(start); // Then drop the processed part
 					}
 
-					// Get the tag!
+					// Get the tag name
 					int end = html.IndexOf(">");
-					string tagContent = html.Substring(1, end - 1);
-					finalHTML += processTag(tagContent);
+					string tagData = html.Substring(1, end - 1);
+
+					// For finding the "closing" tag, we only need the
+					// first part of the tag, not any ancillary data
+					// ("div" instead of "div name=something").
+					string tagType = tagData.Split()[0];
+
+					// Now drop the tag we just grabbed, no longer needed
 					html = html.Substring(end + 1);
+
+					// SPECIAL CASE: The <br> tag is a singleton and doesn't
+					// actually have a close-tag scenario, so we can just
+					// move on with life after we process it.
+					if (tagType == "br")
+					{
+						finalHTML += Environment.NewLine;
+						continue;
+					}
+
+					// Next, get the "end" (closing flag) of the tag
+					start = html.IndexOf("</" + tagType);
+					if (start == -1)
+					{   // Something is wrong, the tag never got closed out!
+						//finalHTML = "+++ Tag " + tagType + " not properly closed +++";
+						break;
+					}
+
+					// Pull all content between opening and closing HTML tags
+					string tagContent = html.Substring(0, start);
+
+					// Then drop the content and the closing tag
+					end = html.IndexOf(">", start);
+					html = html.Substring(end + 1);
+
+					finalHTML += processTag(tagData, tagContent);
 				}
 			}
 
-			finalHTML = finalHTML.Replace("  ", " ").Trim(); // Get rid of any double-spaces & leading whitespace
-			renderBox.Text = finalHTML;
+			finalHTML = finalHTML.Replace("  ", " ").Trim(); // Get rid of any double-spaces & surrounding whitespace
+			return(finalHTML);
 		}
 
 		//---------------------------------------------------------------------------
-		private string processTag(string tag)
+		private string processTag(string tag, string content)
 		{
-			string retVal = "";
-			bool bClosing = false;
-
-			if (tag[0] == '/')
-			{
-				tag = tag.Substring(1);
-				bClosing = true;
-			}
-
+			string retVal = parseBody(content);
 			string[] tagArray = tag.Split();
 
 			switch( tagArray[0] )
@@ -155,25 +183,28 @@ namespace GenericBrowser
 				case "h2":
 				case "h3":
 				case "h4":
-					retVal += "\n";
-					if(bClosing)
-						retVal += "\n";
+				case "p":
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "div":
-					retVal += "\n";
-					if (bClosing)
-						retVal += "\n";
+					retVal += Environment.NewLine;
 					break;
 
-				case "p":
-					retVal += "\n";
-					if (bClosing)
-						retVal += "\n";
+				case "span":
 					break;
 
-				case "br":
-					retVal += "\n";
+				case "table":
+					retVal += Environment.NewLine;
+					break;
+
+				case "tr":
+					retVal += " |" + Environment.NewLine;
+					break;
+
+				case "th":
+				case "td":
+					retVal = "| " + retVal;
 					break;
 
 				default:

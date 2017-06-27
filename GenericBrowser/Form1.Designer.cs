@@ -57,11 +57,14 @@
 			// 
 			// renderBox
 			// 
-			this.renderBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+			this.renderBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+			this.renderBox.AutoSize = true;
 			this.renderBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.renderBox.Location = new System.Drawing.Point(10, 34);
 			this.renderBox.Name = "renderBox";
+			this.renderBox.Padding = new System.Windows.Forms.Padding(2);
 			this.renderBox.Size = new System.Drawing.Size(765, 525);
 			this.renderBox.TabIndex = 3;
 			this.renderBox.TabStop = false;
