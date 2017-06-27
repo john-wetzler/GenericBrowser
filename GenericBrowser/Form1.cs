@@ -37,10 +37,11 @@ namespace GenericBrowser
 			HttpClient client = new HttpClient();
 			HttpContent content = client.GetAsync(strURL).Result.Content;
 
-			// Convert any newline chars to spaces before we begin.
+			// Convert any newlines and tabs to spaces before we begin.
 			// That's how a real browser would handle whitespace.
 			string inputHTML = content.ReadAsStringAsync().Result;
 			inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
+			inputHTML = inputHTML.Replace("\t", " ");
 			renderContent(inputHTML);
 		}
 

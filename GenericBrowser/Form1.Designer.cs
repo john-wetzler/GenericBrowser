@@ -38,7 +38,7 @@
 			this.goButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
 			this.goButton.BackColor = System.Drawing.Color.LimeGreen;
 			this.goButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.goButton.Location = new System.Drawing.Point(740, 5);
+			this.goButton.Location = new System.Drawing.Point(740, 4);
 			this.goButton.Name = "goButton";
 			this.goButton.Size = new System.Drawing.Size(35, 23);
 			this.goButton.TabIndex = 1;
@@ -48,10 +48,10 @@
 			// 
 			// inputBox
 			// 
-			this.inputBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.inputBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.inputBox.Location = new System.Drawing.Point(10, 5);
 			this.inputBox.Name = "inputBox";
-			this.inputBox.Size = new System.Drawing.Size(725, 20);
+			this.inputBox.Size = new System.Drawing.Size(725, 21);
 			this.inputBox.TabIndex = 2;
 			this.inputBox.Text = "http://";
 			// 
@@ -61,7 +61,7 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.renderBox.AutoSize = true;
-			this.renderBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.renderBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.renderBox.Location = new System.Drawing.Point(10, 34);
 			this.renderBox.Name = "renderBox";
 			this.renderBox.Padding = new System.Windows.Forms.Padding(2);
