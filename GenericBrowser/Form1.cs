@@ -79,14 +79,14 @@ namespace GenericBrowser
 
 			// Now move onto the <body> processing
 			//-----------------------------------------------------------------
-			start = html.IndexOf("<body>");
+			start = html.IndexOf("<body");
 			if (start > -1)
-			{   // <body> tag located!
-				start += 6; // As before, we don't need the tag part itself
-				int end = html.IndexOf("</body>");
-				if (end > start)
+			{   // <body*> tag located!
+				int end1 = html.IndexOf(">",start)+ 1; // Add one for '>' itself
+				int end2 = html.IndexOf("</body>");
+				if (end2 > end1)
 				{   // There's text between opening and closing tags
-					string body = html.Substring(start, end - start);
+					string body = html.Substring(end1, end2 - end1);
 					renderBox.Text = parseBody( body.Trim() );
 					formatDisplay();
 				}
@@ -144,16 +144,21 @@ namespace GenericBrowser
 					// Now drop the tag we just grabbed, no longer needed
 					html = html.Substring(end + 1);
 
-					// SPECIAL CASE: The <br> tag is a singleton and doesn't
-					// actually have a close-tag scenario, so we can just
-					// move on with life after we process it.
-					if (tagType == "br")
+					//---------------------------------------------------------
+					// SPECIAL CASES: Some tags (comments, hr, br) are self-
+					// contained and have no 'closing' tag.
+					if (tagType == "br" || tagType == "hr")
 					{
 						finalHTML += Environment.NewLine;
 						continue;
 					}
+					else if (tagType.StartsWith("!") || tagType == "img")
+					{
+						continue;
+					}
+					//---------------------------------------------------------
 
-					// Next, get the "end" (closing flag) of the tag
+					// If not a special case, find the "end" (closing flag) of the tag
 					start = html.IndexOf("</" + tagType);
 					if (start == -1)
 					{   // Something is wrong, the tag never got closed out!
@@ -168,7 +173,7 @@ namespace GenericBrowser
 					end = html.IndexOf(">", start);
 					html = html.Substring(end + 1);
 
-					finalHTML += processTag(tagData, tagContent, finalHTML.Length);
+					finalHTML += processTag(tagData, tagContent);
 				}
 			}
 
@@ -177,10 +182,20 @@ namespace GenericBrowser
 		}
 
 		//---------------------------------------------------------------------------
-		private string processTag(string tag, string content, int length)
+		private string processTag(string tag, string content)
 		{
-			string retVal = parseBody(content);
 			string[] tagArray = tag.Split();
+			string retVal = "";
+
+			// Handle tables as their own separate thing:
+			if (tagArray[0] == "table")
+			{
+				retVal = formatTable(content);
+				return retVal;
+			}
+
+			// Wasn't a table, so move on with everything else:
+			retVal = parseBody(content);
 			Font f;
 			KeyValuePair<String, Font> style;
 
@@ -215,11 +230,8 @@ namespace GenericBrowser
 					break;
 
 				case "p":
-					retVal = Environment.NewLine + retVal + Environment.NewLine;
-					break;
-
 				case "div":
-					retVal = Environment.NewLine + retVal;
+					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "span":
@@ -234,6 +246,23 @@ namespace GenericBrowser
 					styleList.Add(style);
 					break;
 
+				case "script": // Ignore all "script" tags
+					retVal = "";
+					break;
+
+				default:
+					break;
+			}
+
+			return retVal;
+		}
+
+		//---------------------------------------------------------------------------
+		private string formatTable(string content)
+		{
+			string retVal = Environment.NewLine + content + Environment.NewLine;
+			return retVal;
+			/*
 				case "table":
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
@@ -252,14 +281,10 @@ namespace GenericBrowser
 				case "td":
 					retVal = "| " + retVal;
 					break;
-
-				default:
-					break;
-			}
-
-			return retVal;
+			 */
 		}
 
+		//---------------------------------------------------------------------------
 		private void formatDisplay()
 		{
 			Int32 index = 0;
