@@ -50,6 +50,15 @@ namespace GenericBrowser
 				string inputHTML = content.ReadAsStringAsync().Result;
 				inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
 				inputHTML = inputHTML.Replace("\t", " ");
+
+				// We should also normalize a handful of the tags, for ease
+				inputHTML = inputHTML.Replace("<HEAD", "<head");
+				inputHTML = inputHTML.Replace("/HEAD", "/head");
+				inputHTML = inputHTML.Replace("<BODY", "<body");
+				inputHTML = inputHTML.Replace("/BODY", "/body");
+				inputHTML = inputHTML.Replace("<TITLE", "<title");
+				inputHTML = inputHTML.Replace("/TITLE", "/title");
+
 				renderContent(inputHTML);
 
 				renderBox.MouseWheel += new System.Windows.Forms.MouseEventHandler(scroller);
@@ -193,7 +202,6 @@ namespace GenericBrowser
 					start = html.IndexOf("</" + tagType);
 					if (start == -1)
 					{   // Something is wrong, the tag never got closed out!
-						//finalHTML = "+++ Tag " + tagType + " not properly closed +++";
 						break;
 					}
 
@@ -233,6 +241,7 @@ namespace GenericBrowser
 			switch ( tagArray[0] )
 			{
 				case "h1":
+				case "H1":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 3, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -240,6 +249,7 @@ namespace GenericBrowser
 					break;
 
 				case "h2":
+				case "H2":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 2, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -247,6 +257,7 @@ namespace GenericBrowser
 					break;
 
 				case "h3":
+				case "H3":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 1, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -254,6 +265,7 @@ namespace GenericBrowser
 					break;
 
 				case "h4":
+				case "H4":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -261,17 +273,21 @@ namespace GenericBrowser
 					break;
 
 				case "p":
+				case "P":
 				case "div":
+				case "DIV":
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "span":
+				case "SPAN":
 					f = new Font(renderBox.Font, FontStyle.Italic);
 					style = new KeyValuePair<string, Font>(retVal,f);
 					styleList.Add(style);
 					break;
 
 				case "a":
+				case "A":
 					f = new Font(renderBox.Font, FontStyle.Underline);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -283,15 +299,18 @@ namespace GenericBrowser
 					break;
 
 				case "script": // Ignore all "script" tags
+				case "SCRIPT":
 					retVal = "";
 					break;
 
 				// Table content stuff
 				case "tr":
+				case "TR":
 					retVal += "‡"; // Special marker that's unlikely to come up normally
 					break;
 
 				case "th":
+				case "TH":
 					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -299,6 +318,7 @@ namespace GenericBrowser
 					break;
 
 				case "td":
+				case "TD":
 					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
