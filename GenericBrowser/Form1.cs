@@ -14,7 +14,9 @@ namespace GenericBrowser
 {
 	public partial class BrowserWindow : Form
 	{
-		List<KeyValuePair<String, Font>> styleList = new List<KeyValuePair<String, Font>>();
+		List<KeyValuePair<string, Font>> styleList = new List<KeyValuePair<string, Font>>();
+		List<KeyValuePair<string, string>> weblinkList = new List<KeyValuePair<string, string>>();
+		List<TextBox> generatedButtons = new List<TextBox>();
 
 		public BrowserWindow()
 		{
@@ -31,25 +33,39 @@ namespace GenericBrowser
 
 		}
 
+		//---------------------------------------------------------------------------
 		private void goButton_Click(object sender, EventArgs e)
 		{
 			string strURL = formatURL(inputBox.Text);
 			this.Text = strURL; // Default to URL if no <title> tag found
 
 			HttpClient client = new HttpClient();
-			HttpContent content = client.GetAsync(strURL).Result.Content;
+			HttpContent content;
+			try
+			{
+				content = client.GetAsync(strURL).Result.Content;
 
-			// Convert any newlines and tabs to spaces before we begin.
-			// That's how a real browser would handle whitespace.
-			string inputHTML = content.ReadAsStringAsync().Result;
-			inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
-			inputHTML = inputHTML.Replace("\t", " ");
-			renderContent(inputHTML);
+				// Convert any newlines and tabs to spaces before we begin.
+				// That's how a real browser would handle whitespace.
+				string inputHTML = content.ReadAsStringAsync().Result;
+				inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
+				inputHTML = inputHTML.Replace("\t", " ");
+				renderContent(inputHTML);
+
+				renderBox.MouseWheel += new System.Windows.Forms.MouseEventHandler(scroller);
+			}
+			catch
+			{	// Build some kind of error message, instead of crashing the program.
+				renderContent("<body>Error trying to reach destination: " + strURL + "</body>");
+			}
 		}
 
+		//---------------------------------------------------------------------------
 		private string formatURL(string strURL)
 		{
-			if(strURL.StartsWith("http://",StringComparison.InvariantCultureIgnoreCase) == false)
+			bool hasHTTP = strURL.StartsWith("http://", StringComparison.InvariantCultureIgnoreCase);
+			bool hasHTTPS = strURL.StartsWith("https://", StringComparison.InvariantCultureIgnoreCase);
+			if (!hasHTTP && !hasHTTPS)
 			{   // Correct the formatting
 				strURL = string.Concat("http://", strURL);
 			}
@@ -57,6 +73,7 @@ namespace GenericBrowser
 			return strURL;
 		}
 
+		//---------------------------------------------------------------------------
 		private void renderContent(string html)
 		{
 			// Start with the <head> processing
@@ -73,9 +90,7 @@ namespace GenericBrowser
 				}
 			}
 
-			// Clear out any currently-displayed web page data
-			renderBox.Text = "";
-			styleList.Clear();
+			clearOldData();
 
 			// Now move onto the <body> processing
 			//-----------------------------------------------------------------
@@ -91,6 +106,22 @@ namespace GenericBrowser
 					formatDisplay();
 				}
 			}
+		}
+
+		//---------------------------------------------------------------------------
+		private void clearOldData()
+		{
+			renderBox.Text = "";
+			styleList.Clear();
+			weblinkList.Clear();
+
+			// Disconnect any buttons still possibly around
+			foreach (TextBox box in generatedButtons)
+			{
+				renderBox.Controls.Remove(box);
+				box.Dispose();
+			}
+			generatedButtons.Clear();
 		}
 
 		//---------------------------------------------------------------------------
@@ -145,8 +176,8 @@ namespace GenericBrowser
 					html = html.Substring(end + 1);
 
 					//---------------------------------------------------------
-					// SPECIAL CASES: Some tags (comments, hr, br) are self-
-					// contained and have no 'closing' tag.
+					// SPECIAL CASES:
+					// Some tags are self-contained and have no 'closing' tag.
 					if (tagType == "br" || tagType == "hr")
 					{
 						finalHTML += Environment.NewLine;
@@ -190,41 +221,41 @@ namespace GenericBrowser
 			// Handle tables as their own separate thing:
 			if (tagArray[0] == "table")
 			{
-				retVal = formatTable(content);
+				retVal = formatTable( content.Trim() );
 				return retVal;
 			}
 
 			// Wasn't a table, so move on with everything else:
 			retVal = parseBody(content);
 			Font f;
-			KeyValuePair<String, Font> style;
+			KeyValuePair<string, Font> style;
 
 			switch ( tagArray[0] )
 			{
 				case "h1":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 3, FontStyle.Bold);
-					style = new KeyValuePair<String, Font>(retVal, f);
+					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "h2":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 2, FontStyle.Bold);
-					style = new KeyValuePair<String, Font>(retVal, f);
+					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "h3":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 1, FontStyle.Bold);
-					style = new KeyValuePair<String, Font>(retVal, f);
+					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "h4":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints, FontStyle.Bold);
-					style = new KeyValuePair<String, Font>(retVal, f);
+					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
@@ -236,18 +267,42 @@ namespace GenericBrowser
 
 				case "span":
 					f = new Font(renderBox.Font, FontStyle.Italic);
-					style = new KeyValuePair<String, Font>(retVal,f);
+					style = new KeyValuePair<string, Font>(retVal,f);
 					styleList.Add(style);
 					break;
 
 				case "a":
 					f = new Font(renderBox.Font, FontStyle.Underline);
-					style = new KeyValuePair<String, Font>(retVal, f);
+					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
+
+					if (tagArray.Length > 1)
+					{	// Ignore stuff like a bare <a> tag
+						addLink(retVal, tagArray[1]);
+					}
 					break;
 
 				case "script": // Ignore all "script" tags
 					retVal = "";
+					break;
+
+				// Table content stuff
+				case "tr":
+					retVal += "‡"; // Special marker that's unlikely to come up normally
+					break;
+
+				case "th":
+					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints, FontStyle.Bold);
+					style = new KeyValuePair<string, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = "|" + retVal;
+					break;
+
+				case "td":
+					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints);
+					style = new KeyValuePair<string, Font>(retVal, f);
+					styleList.Add(style);
+					retVal = "|" + retVal;
 					break;
 
 				default:
@@ -258,41 +313,137 @@ namespace GenericBrowser
 		}
 
 		//---------------------------------------------------------------------------
+		// The "innards" of a table can be handled by the normal tag parser.
+		// What this tries to do is figure out the "size" of the table so
+		// we can line everything up and make it look not-terrible.
 		private string formatTable(string content)
 		{
-			string retVal = Environment.NewLine + content + Environment.NewLine;
-			return retVal;
-			/*
-				case "table":
-					retVal = Environment.NewLine + retVal + Environment.NewLine;
-					break;
+			// Set up some storage for "formatted table" entries
+			List<List<string>> formattedRows = new List<List<string>>(); // It's a list-of-lists
 
-				case "tr":
-					retVal += " |" + Environment.NewLine;
-					break;
+			int maxLength = 0;
+			int maxWidthInPx = 0;
+			Font tableFont = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints);
 
-				case "th":
-					f = new Font(renderBox.Font, FontStyle.Bold);
-					style = new KeyValuePair<String, Font>(retVal, f);
-					styleList.Add(style);
-					retVal = "| " + retVal;
-					break;
+			string[] rows = parseBody(content).Split('‡');
+			foreach (string row in rows)
+			{
+				if(row == "")
+				{	// Don't do anything with empty rows
+					continue;
+				}
 
-				case "td":
-					retVal = "| " + retVal;
-					break;
-			 */
+				List<string> formattedColumns = new List<string>();
+
+				string[] columns = row.Split('|');
+				foreach (string cell in columns)
+				{
+					string trimmedCell = cell.Trim();
+					if(trimmedCell == "")
+					{	// Skip empty cells
+						continue;
+					}
+
+					// While we're here, track the largest cell
+					if (trimmedCell.Length > maxLength)
+					{
+						maxLength = trimmedCell.Length;
+						maxWidthInPx = TextRenderer.MeasureText(trimmedCell, tableFont).Width;
+					}
+
+					// Build a list of cells for this row
+					formattedColumns.Add(trimmedCell);
+				}
+
+				// Add all formatted cells to the formatted row list
+				formattedRows.Add(formattedColumns);
+			}
+
+			// Now, we take all "formatted" entries and add them back
+			// into the output string in a vaguely grid-like fashion.
+			string retVal = Environment.NewLine;
+			foreach(List<string> rowList in formattedRows)
+			{
+				foreach(string col in rowList)
+				{
+					retVal += "| " + col;
+					string filler = "";
+					while (TextRenderer.MeasureText(col + filler, tableFont).Width < maxWidthInPx)
+					{
+						filler += '\xA0'; // &nbsp; (non-breaking space)
+					}
+					retVal += filler + " ";
+				}
+
+				retVal += "|" + Environment.NewLine;
+			}
+
+			return (retVal + Environment.NewLine);
+		}
+
+		//---------------------------------------------------------------------------
+		private void addLink(string displaytext, string target)
+		{
+			string targetURL = target.Split('=')[1];
+			targetURL = targetURL.Substring(1, targetURL.Length - 2); // Strip off the quotes
+			KeyValuePair<string, string> newLink = new KeyValuePair<string, string>(displaytext, targetURL);
+			weblinkList.Add(newLink);
 		}
 
 		//---------------------------------------------------------------------------
 		private void formatDisplay()
 		{
 			Int32 index = 0;
-			foreach (KeyValuePair<String, Font> style in styleList)
+			foreach (KeyValuePair<string, Font> style in styleList)
 			{
 				index = renderBox.Find(style.Key, index, RichTextBoxFinds.MatchCase);
 				renderBox.SelectionFont = style.Value;
 			}
+
+			index = 0;
+			foreach (KeyValuePair<string, string> link in weblinkList)
+			{
+				index = renderBox.Find(link.Key, index, RichTextBoxFinds.MatchCase);
+
+				Point p = renderBox.GetPositionFromCharIndex(index);
+
+				Size sz = TextRenderer.MeasureText(link.Key, renderBox.Font);
+				Font fnt = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints, FontStyle.Underline);
+
+				// Here, we're building a TextBox that ACTS like a button.
+				// By doing so, the button matches the rest of our text
+				// window, but it becomes a thing you can click on.
+				TextBox linkButton = new TextBox();
+				linkButton.Location = p;
+				linkButton.Size = sz;
+				linkButton.Text = link.Key;
+				linkButton.Tag = link.Value;
+				linkButton.Font = fnt;
+				linkButton.ForeColor = Color.Blue;
+				linkButton.BackColor = renderBox.BackColor;
+				linkButton.BorderStyle = BorderStyle.None;
+				linkButton.Click += new EventHandler(linkHandler);
+
+				generatedButtons.Add(linkButton);    // Save it to our list
+				renderBox.Controls.Add(linkButton);  // Add it to the overall control list
+				linkButton.BringToFront();           // Force it to draw on top
+			}
+		}
+
+		//---------------------------------------------------------------------------
+		private void linkHandler(object sender, EventArgs e)
+		{
+			TextBox btn = sender as TextBox;
+			inputBox.Text = (string)btn.Tag;
+			renderBox.Controls.Remove(btn); // Remove the button
+			goButton.PerformClick();        // Now fake a click to "Go" there
+		}
+
+		//---------------------------------------------------------------------------
+		private void scroller(object sender, System.Windows.Forms.MouseEventArgs e)
+		{
+			// Do some kind of scroll handling, to keep all the web-link buttons
+			// tied to the correct location and not floating in space.
 		}
 	}
 }
