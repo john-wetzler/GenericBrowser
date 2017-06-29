@@ -18,6 +18,10 @@ namespace GenericBrowser
 		List<KeyValuePair<string, string>> weblinkList = new List<KeyValuePair<string, string>>();
 		List<TextBox> generatedButtons = new List<TextBox>();
 
+		// Storage for debug information
+		bool bDebug = false;
+		string debugString = "";
+
 		public BrowserWindow()
 		{
 			InitializeComponent();
@@ -33,7 +37,7 @@ namespace GenericBrowser
 
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void goButton_Click(object sender, EventArgs e)
 		{
 			string strURL = formatURL(inputBox.Text);
@@ -43,48 +47,90 @@ namespace GenericBrowser
 			HttpContent content;
 			try
 			{
-				content = client.GetAsync(strURL).Result.Content;
+				string inputHTML = "";
 
-				// Convert any newlines and tabs to spaces before we begin.
-				// That's how a real browser would handle whitespace.
-				string inputHTML = content.ReadAsStringAsync().Result;
-				inputHTML = inputHTML.Replace(Environment.NewLine, " ").Trim();
-				inputHTML = inputHTML.Replace("\t", " ");
+				if (!bDebug)
+				{
+					content = client.GetAsync(strURL).Result.Content;
+					inputHTML = content.ReadAsStringAsync().Result;
+				}
+				else
+				{   // Read from a local file, as specified by the user's input
+					inputHTML = System.IO.File.ReadAllText(@strURL);
+				}
 
-				// We should also normalize a handful of the tags, for ease
-				inputHTML = inputHTML.Replace("<HEAD", "<head");
-				inputHTML = inputHTML.Replace("/HEAD", "/head");
-				inputHTML = inputHTML.Replace("<BODY", "<body");
-				inputHTML = inputHTML.Replace("/BODY", "/body");
-				inputHTML = inputHTML.Replace("<TITLE", "<title");
-				inputHTML = inputHTML.Replace("/TITLE", "/title");
-
-				renderContent(inputHTML);
-
+				renderContent( normalizeInput(inputHTML) );
 				renderBox.MouseWheel += new System.Windows.Forms.MouseEventHandler(scroller);
 			}
 			catch
-			{	// Build some kind of error message, instead of crashing the program.
+			{	// Build some kind of error message instead of crashing the program.
 				renderContent("<body>Error trying to reach destination: " + strURL + "</body>");
 			}
+
+			debugOutput(); // Dump debug information, if necessary
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private string formatURL(string strURL)
 		{
-			bool hasHTTP = strURL.StartsWith("http://", StringComparison.InvariantCultureIgnoreCase);
-			bool hasHTTPS = strURL.StartsWith("https://", StringComparison.InvariantCultureIgnoreCase);
-			if (!hasHTTP && !hasHTTPS)
-			{   // Correct the formatting
-				strURL = string.Concat("http://", strURL);
+			bDebug = strURL.StartsWith("debug:"); // Maybe we're testing something?
+
+			if(!bDebug)
+			{
+				bool hasHTTP = strURL.StartsWith("http://", StringComparison.InvariantCultureIgnoreCase);
+				bool hasHTTPS = strURL.StartsWith("https://", StringComparison.InvariantCultureIgnoreCase);
+				if (!hasHTTP && !hasHTTPS)
+				{   // Correct the formatting
+					strURL = string.Concat("http://", strURL);
+				}
+			}
+			else
+			{
+				string[] parameters = strURL.Split(':');
+				strURL = ""; // Rebuild the path string from scratch
+
+				if (parameters.Length > 1)
+				{   // Everything else must be a local file's path
+					int n = 1;
+					while(n < parameters.Length)
+					{
+						strURL += parameters[n++];
+						if (n < parameters.Length)
+							strURL += ":";
+						// User might have used a fully qualified path,
+						// like "C:\Temp\file.html" so we have to
+						// preserve the extra colon.
+					}
+				}
 			}
 
-			return strURL;
+			return strURL.Trim();
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
+		private string normalizeInput(string input)
+		{
+			// Convert any newlines and tabs to spaces before we begin.
+			// That's how a real browser would handle whitespace.
+			input = input.Replace(Environment.NewLine, " ").Trim();
+			input = input.Replace("\t", " ");
+
+			// We should also normalize a handful of the tags, for ease
+			input = input.Replace("<HEAD", "<head");
+			input = input.Replace("/HEAD", "/head");
+			input = input.Replace("<BODY", "<body");
+			input = input.Replace("/BODY", "/body");
+			input = input.Replace("<TITLE", "<title");
+			input = input.Replace("/TITLE", "/title");
+
+			return input;
+		}
+
+		//---------------------------------------------------------------------
 		private void renderContent(string html)
 		{
+			clearOldData();
+
 			// Start with the <head> processing
 			//-----------------------------------------------------------------
 			int start = html.IndexOf("<head>");
@@ -95,11 +141,14 @@ namespace GenericBrowser
 				if (end > start)
 				{	// There's text between opening and closing tags
 					string header = html.Substring(start, end - start);
+					addDebugText("head", header);
 					parseHead(header);
 				}
+				else
+				{
+					addDebugText("head", "No HEAD information found - ignoring.");
+				}
 			}
-
-			clearOldData();
 
 			// Now move onto the <body> processing
 			//-----------------------------------------------------------------
@@ -111,15 +160,21 @@ namespace GenericBrowser
 				if (end2 > end1)
 				{   // There's text between opening and closing tags
 					string body = html.Substring(end1, end2 - end1);
+					addDebugText("body", body);
 					renderBox.Text = parseBody( body.Trim() );
 					formatDisplay();
+				}
+				else
+				{
+					addDebugText("body", "No BODY information found - ignoring.");
 				}
 			}
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void clearOldData()
 		{
+			debugString = "";
 			renderBox.Text = "";
 			styleList.Clear();
 			weblinkList.Clear();
@@ -133,7 +188,7 @@ namespace GenericBrowser
 			generatedButtons.Clear();
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void parseHead(string html)
 		{	// Strip out the "title" and set the window's title to it
 			int start = html.IndexOf("<title>");
@@ -145,11 +200,16 @@ namespace GenericBrowser
 				{   // There's text between opening and closing tags
 					string title = html.Substring(start, end - start);
 					this.Text = title; // Set window title to HTML <title> content
+					addDebugText("title", title);
+				}
+				else
+				{
+					addDebugText("title", "No TITLE information found - ignoring.");
 				}
 			}
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private string parseBody(string html)
 		{
 			string finalHTML = "";
@@ -220,7 +280,7 @@ namespace GenericBrowser
 			return(finalHTML);
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private string processTag(string tag, string content)
 		{
 			string[] tagArray = tag.Split();
@@ -233,15 +293,14 @@ namespace GenericBrowser
 				return retVal;
 			}
 
-			// Wasn't a table, so move on with everything else:
+			// It wasn't a table so move on with everything else:
 			retVal = parseBody(content);
 			Font f;
 			KeyValuePair<string, Font> style;
 
-			switch ( tagArray[0] )
+			switch ( tagArray[0].ToLower() ) // Lowercase the tag to make life better
 			{
 				case "h1":
-				case "H1":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 3, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -249,7 +308,6 @@ namespace GenericBrowser
 					break;
 
 				case "h2":
-				case "H2":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 2, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -257,7 +315,6 @@ namespace GenericBrowser
 					break;
 
 				case "h3":
-				case "H3":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints + 1, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -265,7 +322,6 @@ namespace GenericBrowser
 					break;
 
 				case "h4":
-				case "H4":
 					f = new Font(renderBox.Font.FontFamily, renderBox.Font.SizeInPoints, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -273,21 +329,18 @@ namespace GenericBrowser
 					break;
 
 				case "p":
-				case "P":
 				case "div":
-				case "DIV":
 					retVal = Environment.NewLine + retVal + Environment.NewLine;
 					break;
 
 				case "span":
-				case "SPAN":
 					f = new Font(renderBox.Font, FontStyle.Italic);
 					style = new KeyValuePair<string, Font>(retVal,f);
 					styleList.Add(style);
+					retVal += " ";
 					break;
 
 				case "a":
-				case "A":
 					f = new Font(renderBox.Font, FontStyle.Underline);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -298,19 +351,12 @@ namespace GenericBrowser
 					}
 					break;
 
-				case "script": // Ignore all "script" tags
-				case "SCRIPT":
-					retVal = "";
-					break;
-
 				// Table content stuff
 				case "tr":
-				case "TR":
 					retVal += "‡"; // Special marker that's unlikely to come up normally
 					break;
 
 				case "th":
-				case "TH":
 					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints, FontStyle.Bold);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
@@ -318,26 +364,32 @@ namespace GenericBrowser
 					break;
 
 				case "td":
-				case "TD":
 					f = new Font(FontFamily.GenericMonospace, renderBox.Font.SizeInPoints);
 					style = new KeyValuePair<string, Font>(retVal, f);
 					styleList.Add(style);
 					retVal = "|" + retVal;
 					break;
 
+				case "script": // Ignore all "script" tags
+					retVal = "";
+					break;
+
 				default:
 					break;
 			}
 
+			addDebugText( tagArray[0].ToLower(), retVal.Trim() );
 			return retVal;
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		// The "innards" of a table can be handled by the normal tag parser.
 		// What this tries to do is figure out the "size" of the table so
 		// we can line everything up and make it look not-terrible.
 		private string formatTable(string content)
 		{
+			addDebugText("table", content);
+
 			// Set up some storage for "formatted table" entries
 			List<List<string>> formattedRows = new List<List<string>>(); // It's a list-of-lists
 
@@ -401,7 +453,7 @@ namespace GenericBrowser
 			return (retVal + Environment.NewLine);
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void addLink(string displaytext, string target)
 		{
 			string targetURL = target.Split('=')[1];
@@ -410,7 +462,7 @@ namespace GenericBrowser
 			weblinkList.Add(newLink);
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void formatDisplay()
 		{
 			Int32 index = 0;
@@ -450,7 +502,7 @@ namespace GenericBrowser
 			}
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void linkHandler(object sender, EventArgs e)
 		{
 			TextBox btn = sender as TextBox;
@@ -459,11 +511,33 @@ namespace GenericBrowser
 			goButton.PerformClick();        // Now fake a click to "Go" there
 		}
 
-		//---------------------------------------------------------------------------
+		//---------------------------------------------------------------------
 		private void scroller(object sender, System.Windows.Forms.MouseEventArgs e)
 		{
 			// Do some kind of scroll handling, to keep all the web-link buttons
 			// tied to the correct location and not floating in space.
+		}
+
+		//---------------------------------------------------------------------
+		// DEBUG related items
+		//---------------------------------------------------------------------
+		private void addDebugText(string tag, string content)
+		{	// Add to the debug string
+			if (bDebug)
+			{
+				debugString += "================================================================================" + Environment.NewLine;
+				debugString += "PROCESSING TAG: <" + tag + "> WITH CONTENT:" + Environment.NewLine;
+				debugString += content + Environment.NewLine + Environment.NewLine;
+			}
+		}
+
+		private void debugOutput()
+		{	// Write debug string to console and an output file
+			if (bDebug)
+			{
+				Console.WriteLine(debugString);
+				System.IO.File.WriteAllText(@"debug.txt", debugString);
+			}
 		}
 	}
 }
